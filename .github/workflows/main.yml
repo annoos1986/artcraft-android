@@ -1,4 +1,4 @@
-name: Direct APK Builder
+name: ArtCraft Official Builder
 
 on:
   workflow_dispatch:
@@ -9,51 +9,34 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout code with submodules
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Build APK without setup-java cache
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Run Official ArtCraft Build Script
         run: |
-          echo "=== فحص ملفات المشروع ==="
-          ls -la
+          echo "=== محتوى ملف build.sh ==="
+          cat build.sh
+          echo "=== محتوى ملف build-debug.sh ==="
+          cat build-debug.sh
           
-          # البحث عن ملف gradlew إن وجد
-          GRADLEW_PATH=$(find . -name "gradlew" | head -n 1)
+          chmod +x *.sh
           
-          if [ -n "$GRADLEW_PATH" ]; then
-            DIR=$(dirname "$GRADLEW_PATH")
-            cd "$DIR"
-            chmod +x gradlew
-            ./gradlew assembleDebug
-          else
-            mkdir -p www_app
-            if [ -f "package.json" ]; then
-              npm install
-              npm run build || true
-            fi
-            
-            if [ -d "dist" ]; then cp -r dist/* www_app/;
-            elif [ -d "build" ]; then cp -r build/* www_app/;
-            else find . -maxdepth 2 \( -name "*.html" -o -name "*.css" -o -name "*.js" \) -exec cp {} www_app/ \; 2>/dev/null || true;
-            fi
-            
-            if [ ! -f "www_app/index.html" ]; then
-              FIRST_HTML=$(find . -name "*.html" | head -n 1)
-              if [ -n "$FIRST_HTML" ]; then cp "$FIRST_HTML" www_app/index.html; else echo "<h1>ArtCraft</h1>" > www_app/index.html; fi
-            fi
-            
-            npm init -y
-            npm install @capacitor/core @capacitor/cli @capacitor/android
-            npx cap init ArtCraft com.artcraft.app --web-dir www_app
-            npx cap add android
-            npx cap sync android
-            cd android
-            chmod +x gradlew
-            ./gradlew assembleDebug
-          fi
+          # تشغيل سكربت البناء الأصلي الخاص بالمشروع
+          ./build-debug.sh || ./build.sh
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Final-APK
+          name: ArtCraft-APK
           path: "**/*.apk"
