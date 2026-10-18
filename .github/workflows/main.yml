@@ -20,9 +20,6 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Run Official ArtCraft Build Script
         run: |
           echo "=== محتوى ملف build.sh ==="
