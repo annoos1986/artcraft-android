@@ -1,7 +1,27 @@
-name: ArtCraft Official Builder
+name: ArtCraft APK Builder
 
 on:
   workflow_dispatch:
+    inputs:
+      app_name:
+        description: 'اختر التطبيق المراد بناؤه'
+        required: true
+        default: 'photocraft'
+        type: choice
+        options:
+          - photocraft
+          - vectorcraft
+          - filmcraft
+          - lightcraft
+          - pdfcraft
+          - effectcraft
+          - designcraft
+          - figcraft
+          - wordcraft
+          - soundcraft
+          - deckcraft
+          - cadcraft
+          - gridcraft
   push:
     branches: [ "main", "master" ]
 
@@ -9,7 +29,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code with submodules
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -20,28 +40,41 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      - name: Install Rust & Android NDK Target
+        run: |
+          # تثبيت هدف الأندرويد 64-بت للغة Rust
+          rustup target add aarch64-linux-android
+          
+          # تثبيت الأدوات المساعدة التي قد يطلبها السكربت
+          sudo apt-get update
+          sudo apt-get install -y jq zip unzip build-essential pkg-config libssl-dev cmake ninja-build
 
-      - name: Run Official ArtCraft Build Script
+          # التأكد من تعريف مسارات Android SDK و NDK للسكربت
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+          if [ -d "$ANDROID_SDK_ROOT/ndk" ]; then
+            LATEST_NDK=$(ls -1 "$ANDROID_SDK_ROOT/ndk" | sort -V | tail -n 1)
+            echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/$LATEST_NDK" >> $GITHUB_ENV
+            echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/$LATEST_NDK" >> $GITHUB_ENV
+            echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/$LATEST_NDK" >> $GITHUB_ENV
+          fi
+
+      - name: Build ArtCraft APK
         run: |
           chmod +x *.sh lib/*.sh 2>/dev/null || true
+          APP="${{ github.event.inputs.app_name || 'photocraft' }}"
+          echo "=== جاري بناء تطبيق: -$APP ==="
           
-          echo "=== التطبيقات المتاحة داخل adapters ==="
-          ls -1 adapters
-          
-          # قراءة أسماء التطبيقات الموجودة وبناؤها واحداً تلو الآخر
-          for app in $(ls -1 adapters); do
-            echo "========================================="
-            echo "جاري بناء تطبيق: $app"
-            echo "========================================="
-            ./build-debug.sh "$app" || ./build.sh "$app" || RAW_APP="$app" ./build-debug.sh "$app"
-          done
+          # تشغيل الأمر الرسمي كما طلب السكربت بالضبط
+          bash build.sh -"$APP" || {
+            echo "=== سجل الأخطاء من مجلد logs ==="
+            cat logs/* 2>/dev/null || true
+            exit 1
+          }
 
-      - name: Upload APK
+      - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
           name: ArtCraft-APK
-          path: "**/*.apk"
+          path: |
+            output/*.apk
+            **/*.apk
