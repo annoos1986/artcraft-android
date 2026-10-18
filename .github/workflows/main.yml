@@ -20,17 +20,25 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Run Official ArtCraft Build Script
         run: |
-          echo "=== محتوى ملف build.sh ==="
-          cat build.sh
-          echo "=== محتوى ملف build-debug.sh ==="
-          cat build-debug.sh
+          chmod +x *.sh lib/*.sh 2>/dev/null || true
           
-          chmod +x *.sh
+          echo "=== التطبيقات المتاحة داخل adapters ==="
+          ls -1 adapters
           
-          # تشغيل سكربت البناء الأصلي الخاص بالمشروع
-          ./build-debug.sh || ./build.sh
+          # قراءة أسماء التطبيقات الموجودة وبناؤها واحداً تلو الآخر
+          for app in $(ls -1 adapters); do
+            echo "========================================="
+            echo "جاري بناء تطبيق: $app"
+            echo "========================================="
+            ./build-debug.sh "$app" || ./build.sh "$app" || RAW_APP="$app" ./build-debug.sh "$app"
+          done
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
